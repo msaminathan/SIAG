@@ -78,7 +78,7 @@ if user_role in ('admin', 'editor'):
             start = col_d.date_input("Start Date", value=existing.get('start_date') if existing.get('start_date') else None)
             end = col_e.date_input("End Date", value=existing.get('end_date') if existing.get('end_date') else None)
             lead = st.text_input("Project Lead", value=existing.get('project_lead') or "")
-            budget = st.number_input("Budget (INR)", min_value=0.0, step=1000.0, value=existing.get('budget_in_inr') or 0.0)
+            budget = st.number_input("Budget (INR)", min_value=0.0, step=1000.0, value=float(existing.get('budget_in_inr') or 0.0))
             outcome = st.text_area("Outcome Summary", value=existing.get('outcome_summary') or "")
         else:
             name = st.text_input("Project Name*")
