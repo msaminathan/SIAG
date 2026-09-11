@@ -11,8 +11,33 @@ st.title("Media Gallery")
 render_current_user_badge()
 render_current_member_badge()
 
-# Upload section (admin / editor)
+# Fetch videos and photos separately — videos always render first
+videos = fetch_all("SELECT * FROM media WHERE media_type = 'video' ORDER BY created_at DESC")
+photos = fetch_all("SELECT * FROM media WHERE media_type = 'photo' ORDER BY created_at DESC")
+
 user_role = _get_current_user().get('role') if _get_current_user() else None
+
+# --- Existing videos on top ---
+if videos:
+    st.divider()
+    st.subheader("Videos")
+    for r in videos:
+        with st.expander(f"[VIDEO] {r['title']}"):
+            st.video(r['file_path'])
+            st.write(f"**Tags:** {r.get('tags') or '-'}")
+            st.write(f"**Related:** {r.get('related_type')} {r.get('related_id') or ''}")
+            if user_role in ('admin', 'editor'):
+                if st.button("Delete", key=f"del_media_{r['id']}", type='secondary'):
+                    delete_file(r['file_path'])
+                    execute_write("DELETE FROM media WHERE id = %s", (r['id'],))
+                    log_activity(_get_current_user()['id'], 'delete', 'media', r['id'])
+                    st.success("Deleted.")
+                    st.rerun()
+                if st.button("Edit", key=f"edit_media_{r['id']}", type='primary'):
+                    st.session_state['editing_media_id'] = r['id']
+                    st.rerun()
+
+# --- Upload section (admin / editor) ---
 if user_role in ('admin', 'editor'):
     st.divider()
     st.subheader("Upload Media")
@@ -39,8 +64,6 @@ if user_role in ('admin', 'editor'):
             st.success("Media uploaded.")
             st.rerun()
 
-st.divider()
-
 # --- Edit Media form (admin / editor) ---
 if user_role in ('admin', 'editor') and st.session_state.get('editing_media_id'):
     edit_id = st.session_state['editing_media_id']
@@ -49,6 +72,8 @@ if user_role in ('admin', 'editor') and st.session_state.get('editing_media_id')
         st.warning("Media item not found.")
         st.session_state['editing_media_id'] = None
         st.rerun()
+    st.divider()
+    st.subheader("Update Media")
     with st.form("edit_media"):
         edit_title = st.text_input("Title*", value=edit_item['title'])
         edit_media_type = st.selectbox("Type", ["photo", "video"], index=0 if edit_item['media_type'] == 'photo' else 1)
@@ -83,17 +108,13 @@ if user_role in ('admin', 'editor') and st.session_state.get('editing_media_id')
             st.session_state['editing_media_id'] = None
             st.rerun()
 
-# Gallery
-rows = fetch_all("SELECT * FROM media ORDER BY created_at DESC")
-if not rows:
-    st.info("No media items yet.")
-else:
-    for r in rows:
-        with st.expander(f"[{r['media_type'].upper()}] {r['title']}"):
-            if r['media_type'] == 'photo':
-                st.image(r['file_path'], caption=r.get('caption'), use_column_width=True)
-            else:
-                st.video(r['file_path'])
+# --- Existing photos ---
+if photos:
+    st.divider()
+    st.subheader("Photos")
+    for r in photos:
+        with st.expander(f"[PHOTO] {r['title']}"):
+            st.image(r['file_path'], caption=r.get('caption'), use_column_width=True)
             st.write(f"**Tags:** {r.get('tags') or '-'}")
             st.write(f"**Related:** {r.get('related_type')} {r.get('related_id') or ''}")
             if user_role in ('admin', 'editor'):
@@ -103,7 +124,10 @@ else:
                     log_activity(_get_current_user()['id'], 'delete', 'media', r['id'])
                     st.success("Deleted.")
                     st.rerun()
-
                 if st.button("Edit", key=f"edit_media_{r['id']}", type='primary'):
                     st.session_state['editing_media_id'] = r['id']
                     st.rerun()
+
+# Empty state
+if not videos and not photos:
+    st.info("No media items yet.")
