@@ -39,6 +39,18 @@ for r in rows:
         st.write(f"**Outcome Summary:** {r.get('outcome_summary') or '-'}")
         st.caption(f"Updates: {r.get('update_count', 0)} | Start: {r.get('start_date')} | End: {r.get('end_date')}")
 
+        # Time-progress bar from start_date -> end_date
+        start_d = r.get('start_date')
+        end_d = r.get('end_date')
+        if start_d and end_d:
+            from datetime import date
+            today = date.today()
+            total = (end_d - start_d).days
+            elapsed = (today - start_d).days
+            if total > 0:
+                pct = max(0, min(100, int((elapsed / total) * 100)))
+                st.progress(pct / 100, text=f"{pct}% of planned time elapsed")
+
         if _get_current_user() and _get_current_user().get('role') in ('admin', 'editor') and st.button("Delete", key=f"del_proj_{r['id']}", type='secondary'):
             execute_write("DELETE FROM projects WHERE id = %s", (r['id'],))
             log_activity(_get_current_user()['id'], 'delete', 'projects', r['id'])
