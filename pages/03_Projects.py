@@ -11,6 +11,65 @@ st.title("Projects")
 render_current_user_badge()
 render_current_member_badge()
 
+user_role = _get_current_user().get('role') if _get_current_user() else None
+editing_id = st.session_state.get('editing_project_id')
+
+# --- Edit mode: show only the edit form, skip the list ---
+if editing_id and user_role in ('admin', 'editor'):
+    existing = fetch_one("SELECT * FROM projects WHERE id = %s", (editing_id,))
+    if not existing:
+        st.session_state['editing_project_id'] = None
+        st.rerun()
+
+    st.title("Projects")
+    render_current_user_badge()
+    render_current_member_badge()
+    st.subheader(f"Update Project: {existing['project_name']}")
+
+    with st.form("edit_project"):
+        name = st.text_input("Project Name*", value=existing.get('project_name') or "")
+        desc = st.text_area("Description", value=existing.get('description') or "")
+        col1, col2 = st.columns(2)
+        cat = col1.text_input("Category", value=existing.get('category') or "")
+        village = col2.text_input("Village", value=existing.get('village') or "")
+        col_a, col_b, col_c = st.columns(3)
+        district = col_a.text_input("District", value=existing.get('district') or "")
+        state = col_b.text_input("State", value=existing.get('state') or "")
+        status = col_c.selectbox(
+            "Status",
+            ["Planning", "Active", "On Hold", "Completed", "Closed"],
+            index=["Planning", "Active", "On Hold", "Completed", "Closed"].index(
+                existing.get('status') or "Planning"
+            ) if (existing.get('status') or "Planning") in [
+                "Planning", "Active", "On Hold", "Completed", "Closed"
+            ] else 0,
+        )
+        col_d, col_e = st.columns(2)
+        start = col_d.date_input("Start Date", value=existing.get('start_date') if existing.get('start_date') else None)
+        end = col_e.date_input("End Date", value=existing.get('end_date') if existing.get('end_date') else None)
+        lead = st.text_input("Project Lead", value=existing.get('project_lead') or "")
+        budget = st.number_input("Budget (INR)", min_value=0.0, step=1000.0, value=float(existing.get('budget_in_inr') or 0.0))
+        outcome = st.text_area("Outcome Summary", value=existing.get('outcome_summary') or "")
+        submitted = st.form_submit_button("Update Project")
+        if submitted and name:
+            execute_write(
+                "UPDATE projects SET project_name=%s,description=%s,category=%s,village=%s,"
+                "district=%s,state=%s,status=%s,start_date=%s,end_date=%s,"
+                "project_lead=%s,budget_in_inr=%s,outcome_summary=%s,updated_by=%s WHERE id=%s",
+                (name, desc or None, cat or None, village or None, district or None, state or None,
+                 status, start, end, lead or None, budget, outcome or None,
+                 _get_current_user()['id'], editing_id),
+            )
+            log_activity(_get_current_user()['id'], 'update', 'projects', editing_id, details=f"Updated {name}")
+            st.success(f"Project updated: {name}")
+            st.session_state['editing_project_id'] = None
+            st.rerun()
+
+    if st.button("Back to project list", key="proj_back_to_list"):
+        st.session_state['editing_project_id'] = None
+        st.rerun()
+    st.stop()
+
 search = st.text_input("Search projects by name / village / district").strip().lower()
 base_query = """
     SELECT p.*, 
