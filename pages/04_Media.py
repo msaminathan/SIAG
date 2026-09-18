@@ -244,7 +244,7 @@ if photos:
         with st.expander(f"[PHOTO] {r['title']}"):
             fp = r['file_path']
             try:
-                st.image(fp, caption=r.get('caption'), use_column_width=True)
+                st.image(fp, caption=r.get('caption'), use_container_width=True)
             except Exception as e:
                 st.warning(f"Could not display photo: {e}")
                 if is_url(fp):

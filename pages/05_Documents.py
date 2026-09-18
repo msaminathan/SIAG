@@ -95,7 +95,7 @@ if not rows:
     st.info("No documents yet.")
 else:
     for r in rows:
-        with st.expander(f"{r['title']} ({r.get('file_type') or '?'} - {r.get('file_size_kb', 0)} KB"):
+        with st.expander(f"{r['title']} ({r.get('file_type') or '?'}) - {r.get('file_size_kb', 0)} KB"):
             st.write(f"**Description:** {r.get('description') or '-'}")
             st.write(f"**Version:** {r.get('version') or '1.0'}")
             st.write(f"**Related:** {r.get('related_type')} {r.get('related_id') or ''}")
