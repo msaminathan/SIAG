@@ -10,14 +10,15 @@ is_admin_or_editor = _get_current_user() is not None and _get_current_user().get
 st.title("Members")
 
 # Flash message (persists across reruns)
-if st.session_state.get('flash_msg'):
-    fmsg = st.session_state['flash_msg']
-    if st.session_state.get('flash_type') == 'error':
+if st.query_params.get("flash"):
+    ftype = st.query_params.get("flash_type", "success")
+    fmsg = st.query_params.get("flash")
+    if ftype == "error":
         st.error(fmsg)
     else:
         st.success(fmsg)
-    del st.session_state['flash_msg']
-    del st.session_state['flash_type']
+    st.query_params.pop("flash", None)
+    st.query_params.pop("flash_type", None)
 
 if st.query_params.get("status") == "password_updated":
     mn = st.query_params.get("member","Member")
@@ -72,8 +73,8 @@ if pending and pending.get('type') == 'member':
             execute_write("DELETE FROM members WHERE id = %s", (pending['id'],))
             log_activity(_get_current_user()['id'], 'delete', 'members', pending['id'])
             st.session_state['pending_delete'] = None
-            st.session_state['flash_msg'] = "Deleted."
-            st.session_state['flash_type'] = 'success'
+            st.query_params["flash"] = "Deleted."
+            st.query_params["flash_type"] = "success"
             st.rerun()
         if c2.button("Cancel", key=f"cancel_del_{pending['id']}", use_container_width=True):
             st.session_state['pending_delete'] = None
@@ -139,8 +140,8 @@ if user_role in ('admin','editor'):
                         (fn,ln,email or None,phone or None,grad or None,dept or None,
                          role_in or None,notes or None,_get_current_user()['id'],eid))
                 log_activity(_get_current_user()['id'],'update','members',eid,details=f"Updated {fn} {ln}")
-                st.session_state['flash_msg'] = f"Member updated: {fn} {ln}"
-                st.session_state['flash_type'] = 'success'
+                st.query_params["flash"] = f"Member updated: {fn} {ln}"
+                st.query_params["flash_type"] = "success"
                 st.session_state['editing_member_id'] = None
                 st.rerun()
             else:
@@ -150,8 +151,8 @@ if user_role in ('admin','editor'):
                     (fn,ln,email or None,phone or None,grad or None,dept or None,
                      role_in or None,pw,notes or None,_get_current_user()['id'],_get_current_user()['id']))
                 log_activity(_get_current_user()['id'],'create','members',details=f"{fn} {ln}")
-                st.session_state['flash_msg'] = "Member added."
-                st.session_state['flash_type'] = 'success'
+                st.query_params["flash"] = "Member added."
+                st.query_params["flash_type"] = "success"
                 st.rerun()
 
     if st.button("Back to Members", key="member_back_to_list"):

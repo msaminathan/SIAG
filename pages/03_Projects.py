@@ -9,14 +9,15 @@ require_role(('admin', 'editor', 'viewer'))
 st.title("Projects")
 
 # Flash message (persists across reruns)
-if st.session_state.get('flash_msg'):
-    fmsg = st.session_state['flash_msg']
-    if st.session_state.get('flash_type') == 'error':
+if st.query_params.get("flash"):
+    ftype = st.query_params.get("flash_type", "success")
+    fmsg = st.query_params.get("flash")
+    if ftype == "error":
         st.error(fmsg)
     else:
         st.success(fmsg)
-    del st.session_state['flash_msg']
-    del st.session_state['flash_type']
+    st.query_params.pop("flash", None)
+    st.query_params.pop("flash_type", None)
 
 render_current_user_badge()
 render_current_member_badge()
@@ -71,8 +72,8 @@ if editing_id and user_role in ('admin', 'editor'):
                  _get_current_user()['id'], editing_id),
             )
             log_activity(_get_current_user()['id'], 'update', 'projects', editing_id, details=f"Updated {name}")
-            st.session_state['flash_msg'] = f"Project updated: {name}"
-            st.session_state['flash_type'] = 'success'
+            st.query_params["flash"] = f"Project updated: {name}"
+            st.query_params["flash_type"] = "success"
             st.session_state['editing_project_id'] = None
             st.rerun()
 
@@ -143,8 +144,8 @@ if pending and pending.get('type') == 'project':
             execute_write("DELETE FROM projects WHERE id = %s", (pending['id'],))
             log_activity(_get_current_user()['id'], 'delete', 'projects', pending['id'])
             st.session_state['pending_delete'] = None
-            st.session_state['flash_msg'] = "Project deleted."
-            st.session_state['flash_type'] = 'success'
+            st.query_params["flash"] = "Project deleted."
+            st.query_params["flash_type"] = "success"
             st.rerun()
         if c2.button("Cancel", key=f"cancel_del_proj_{pending['id']}", use_container_width=True):
             st.session_state['pending_delete'] = None
@@ -222,6 +223,6 @@ if user_role in ('admin', 'editor'):
                  _get_current_user()['id']),
             )
             log_activity(_get_current_user()['id'], 'create', 'projects', details=name)
-            st.session_state['flash_msg'] = "Project added."
-            st.session_state['flash_type'] = 'success'
+            st.query_params["flash"] = "Project added."
+            st.query_params["flash_type"] = "success"
             st.rerun()

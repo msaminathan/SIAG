@@ -55,8 +55,8 @@ if pending and pending.get('type') == 'purge':
             execute_write("DELETE FROM activity_log")
             log_activity(user['id'], 'purge', 'activity_log', None, "Purged all activity log entries")
             st.session_state['pending_delete'] = None
-            st.session_state['flash_msg'] = "Purged all activity log entries."
-            st.session_state['flash_type'] = 'success'
+            st.query_params["flash"] = "Purged all activity log entries."
+            st.query_params["flash_type"] = "success"
             st.rerun()
         if c2.button("Cancel", key="cancel_purge", use_container_width=True):
             st.session_state['pending_delete'] = None
