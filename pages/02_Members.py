@@ -141,6 +141,10 @@ if user_role in ('admin','editor'):
                 st.success("Member added.")
                 st.rerun()
 
+    if st.button("Back to Members", key="member_back_to_list"):
+        st.session_state['editing_member_id'] = None
+        st.rerun()
+
     st.divider()
     st.subheader("Set Member Password")
     with st.form("set_member_password"):
