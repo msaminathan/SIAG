@@ -17,9 +17,11 @@ if user and user.get('role') == 'admin':
     st.subheader("Admin: Purge Activity Log")
     st.caption("This will permanently delete all activity log entries. This action cannot be undone.")
     if st.button("Purge Activity Log", type='primary', width='stretch'):
-        count = execute_write("DELETE FROM activity_log")
-        log_activity(user['id'], 'purge', 'activity_log', None, f"Purged all activity log entries")
-        st.success(f"Purged all activity log entries.")
+        st.session_state['pending_delete'] = {
+            'type': 'purge',
+            'id': None,
+            'label': 'All activity log entries',
+        }
         st.rerun()
 
 st.divider()
@@ -32,3 +34,19 @@ if rows:
     st.dataframe(rows, width='stretch')
 else:
     st.info("No activity recorded yet.")
+
+# --- Delete confirmation popover ---
+pending = st.session_state.get('pending_delete')
+if pending and pending.get('type') == 'purge':
+    with st.popover("Confirm Purge", icon="⚠️"):
+        st.warning(f"Are you sure you want to delete **{pending['label']}**? This cannot be undone.")
+        c1, c2 = st.columns(2)
+        if c1.button("Yes, purge", type="primary", key="confirm_purge", use_container_width=True):
+            execute_write("DELETE FROM activity_log")
+            log_activity(user['id'], 'purge', 'activity_log', None, "Purged all activity log entries")
+            st.session_state['pending_delete'] = None
+            st.success("Purged all activity log entries.")
+            st.rerun()
+        if c2.button("Cancel", key="cancel_purge", use_container_width=True):
+            st.session_state['pending_delete'] = None
+            st.rerun()

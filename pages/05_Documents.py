@@ -20,74 +20,9 @@ if st.session_state.get('editing_doc_id') is None and st.session_state.get('_cle
     st.session_state['_clear_edit'] = False
     st.session_state['editing_doc_id'] = None
 
-# Upload section (admin / editor)
 user_role = _get_current_user().get('role') if _get_current_user() else None
-if user_role in ('admin', 'editor'):
-    st.divider()
-    st.subheader("Upload Document")
-    with st.form("upload_doc"):
-        title = st.text_input("Title*")
-        description = st.text_area("Description")
-        tags = st.text_input("Tags (comma separated)")
-        related_type = st.selectbox("Related to", ["general", "project", "member"])
-        related_id = st.number_input("Related ID (optional)", min_value=0, value=0)
-        file = st.file_uploader("Upload File", type=["pdf", "doc", "docx", "xls", "xlsx", "txt", "csv"])
-        submitted = st.form_submit_button("Upload")
-        if submitted and title and file:
-            stored = save_upload(file, subfolder='documents')
-            size_kb = round(len(file.getvalue()) / 1024)
-            execute_write(
-                "INSERT INTO documents (title, description, file_path, file_type, file_size_kb, related_type, related_id, uploaded_by) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (title, description or None, stored, file.type or None, size_kb,
-                 related_type if related_type != 'general' else 'general',
-                 related_id if related_id else None,
-                 _get_current_user()['id']),
-            )
-            log_activity(_get_current_user()['id'], 'create', 'documents', details=title)
-            st.success("Document uploaded.")
-            st.rerun()
 
-# Edit Document form (admin / editor)
-if user_role in ('admin', 'editor') and st.session_state.get('editing_doc_id') is not None:
-    edit_id = st.session_state['editing_doc_id']
-    edit_doc = fetch_one("SELECT * FROM documents WHERE id = %s", (edit_id,))
-    if edit_doc is None:
-        st.session_state['editing_doc_id'] = None
-        st.rerun()
-    st.divider()
-    st.subheader("Update Document")
-    with st.form("edit_doc"):
-        edit_title = st.text_input("Title*", value=edit_doc['title'])
-        edit_description = st.text_area("Description", value=edit_doc.get('description') or '')
-        edit_tags = st.text_input("Tags (comma separated)", value=edit_doc.get('tags') or '')
-        edit_related_type = st.selectbox("Related to", ["general", "project", "member"],
-                                         index=["general", "project", "member"].index(edit_doc.get('related_type') or 'general'))
-        edit_related_id = st.number_input("Related ID (optional)", min_value=0, value=edit_doc.get('related_id') or 0)
-        edit_file = st.file_uploader("Replace file (optional)", type=["pdf", "doc", "docx", "xls", "xlsx", "txt", "csv"])
-        edit_submitted = st.form_submit_button("Update Document")
-        if edit_submitted and edit_title:
-            new_path = edit_doc['file_path']
-            new_type = edit_doc.get('file_type')
-            new_size_kb = edit_doc.get('file_size_kb', 0)
-            if edit_file is not None:
-                new_path = save_upload(edit_file, subfolder='documents')
-                new_type = edit_file.type or None
-                new_size_kb = round(len(edit_file.getvalue()) / 1024)
-                delete_file(edit_doc['file_path'])
-            execute_write(
-                "UPDATE documents SET title=%s, description=%s, tags=%s, file_path=%s, file_type=%s, file_size_kb=%s, related_type=%s, related_id=%s WHERE id=%s",
-                (edit_title, edit_description or None, edit_tags or None,
-                 new_path, new_type, new_size_kb,
-                 edit_related_type if edit_related_type != 'general' else 'general',
-                 edit_related_id if edit_related_id else None, edit_id),
-            )
-            log_activity(_get_current_user()['id'], 'update', 'documents', details=edit_title)
-            st.session_state['_clear_edit'] = True
-            st.session_state['editing_doc_id'] = None
-            st.success(f"Updated: {edit_title}")
-            st.rerun()
-
+# --- Documents list ---
 st.divider()
 
 rows = fetch_all("SELECT * FROM documents ORDER BY created_at DESC")
@@ -134,8 +69,98 @@ else:
                     st.session_state['editing_doc_id'] = r['id']
                     st.rerun()
                 if col2.button("Delete", key=f"del_doc_{r['id']}", type='secondary', width='stretch'):
-                    delete_file(r['file_path'])
-                    execute_write("DELETE FROM documents WHERE id = %s", (r['id'],))
-                    log_activity(_get_current_user()['id'], 'delete', 'documents', r['id'])
-                    st.success("Deleted.")
+                    st.session_state['pending_delete'] = {
+                        'type': 'document',
+                        'id': r['id'],
+                        'label': r['title'],
+                        'file_path': r['file_path'],
+                    }
                     st.rerun()
+
+# --- Delete confirmation popover ---
+pending = st.session_state.get('pending_delete')
+if pending and pending.get('type') == 'document':
+    with st.popover("Confirm Delete", icon="⚠️"):
+        st.warning(f"Are you sure you want to delete **{pending['label']}**? This cannot be undone.")
+        c1, c2 = st.columns(2)
+        if c1.button("Yes, delete", type="primary", key=f"confirm_del_doc_{pending['id']}", use_container_width=True):
+            delete_file(pending['file_path'])
+            execute_write("DELETE FROM documents WHERE id = %s", (pending['id'],))
+            log_activity(_get_current_user()['id'], 'delete', 'documents', pending['id'])
+            st.session_state['pending_delete'] = None
+            st.success("Deleted.")
+            st.rerun()
+        if c2.button("Cancel", key=f"cancel_del_doc_{pending['id']}", use_container_width=True):
+            st.session_state['pending_delete'] = None
+            st.rerun()
+
+# --- Upload section (admin / editor) ---
+if user_role in ('admin', 'editor') and not st.session_state.get('editing_doc_id'):
+    st.divider()
+    st.subheader("Upload New Document")
+    with st.form("upload_doc"):
+        title = st.text_input("Title*")
+        description = st.text_area("Description")
+        tags = st.text_input("Tags (comma separated)")
+        related_type = st.selectbox("Related to", ["general", "project", "member"])
+        related_id = st.number_input("Related ID (optional)", min_value=0, value=0)
+        file = st.file_uploader("Upload File", type=["pdf", "doc", "docx", "xls", "xlsx", "txt", "csv"])
+        submitted = st.form_submit_button("Upload")
+        if submitted and title and file:
+            stored = save_upload(file, subfolder='documents')
+            size_kb = round(len(file.getvalue()) / 1024)
+            execute_write(
+                "INSERT INTO documents (title, description, file_path, file_type, file_size_kb, related_type, related_id, uploaded_by) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (title, description or None, stored, file.type or None, size_kb,
+                 related_type if related_type != 'general' else 'general',
+                 related_id if related_id else None,
+                 _get_current_user()['id']),
+            )
+            log_activity(_get_current_user()['id'], 'create', 'documents', details=title)
+            st.success("Document uploaded.")
+            st.rerun()
+
+# --- Edit Document form (admin / editor) ---
+if user_role in ('admin', 'editor') and st.session_state.get('editing_doc_id') is not None:
+    edit_id = st.session_state['editing_doc_id']
+    edit_doc = fetch_one("SELECT * FROM documents WHERE id = %s", (edit_id,))
+    if edit_doc is None:
+        st.session_state['editing_doc_id'] = None
+        st.rerun()
+    st.divider()
+    st.subheader("Update Current Document")
+    with st.form("edit_doc"):
+        edit_title = st.text_input("Title*", value=edit_doc['title'])
+        edit_description = st.text_area("Description", value=edit_doc.get('description') or '')
+        edit_tags = st.text_input("Tags (comma separated)", value=edit_doc.get('tags') or '')
+        edit_related_type = st.selectbox("Related to", ["general", "project", "member"],
+                                         index=["general", "project", "member"].index(edit_doc.get('related_type') or 'general'))
+        edit_related_id = st.number_input("Related ID (optional)", min_value=0, value=edit_doc.get('related_id') or 0)
+        edit_file = st.file_uploader("Replace file (optional)", type=["pdf", "doc", "docx", "xls", "xlsx", "txt", "csv"])
+        edit_submitted = st.form_submit_button("Update Document")
+        if edit_submitted and edit_title:
+            new_path = edit_doc['file_path']
+            new_type = edit_doc.get('file_type')
+            new_size_kb = edit_doc.get('file_size_kb', 0)
+            if edit_file is not None:
+                new_path = save_upload(edit_file, subfolder='documents')
+                new_type = edit_file.type or None
+                new_size_kb = round(len(edit_file.getvalue()) / 1024)
+                delete_file(edit_doc['file_path'])
+            execute_write(
+                "UPDATE documents SET title=%s, description=%s, tags=%s, file_path=%s, file_type=%s, file_size_kb=%s, related_type=%s, related_id=%s WHERE id=%s",
+                (edit_title, edit_description or None, edit_tags or None,
+                 new_path, new_type, new_size_kb,
+                 edit_related_type if edit_related_type != 'general' else 'general',
+                 edit_related_id if edit_related_id else None, edit_id),
+            )
+            log_activity(_get_current_user()['id'], 'update', 'documents', details=edit_title)
+            st.session_state['_clear_edit'] = True
+            st.session_state['editing_doc_id'] = None
+            st.success(f"Updated: {edit_title}")
+            st.rerun()
+    if st.button("Back to Documents", key="doc_back_to_list"):
+        st.session_state['editing_doc_id'] = None
+        st.rerun()
+    st.stop()

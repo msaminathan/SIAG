@@ -50,82 +50,34 @@ if videos:
             st.write(f"**Source:** {'Link' if is_url(fp) else 'Uploaded File'}")
             if user_role in ('admin', 'editor'):
                 if st.button("Delete", key=f"del_media_{r['id']}", type='secondary'):
-                    if not is_url(fp):
-                        delete_file(fp)
-                    execute_write("DELETE FROM media WHERE id = %s", (r['id'],))
-                    log_activity(_get_current_user()['id'], 'delete', 'media', r['id'])
-                    st.success("Deleted.")
+                    st.session_state['pending_delete'] = {
+                        'type': 'media',
+                        'id': r['id'],
+                        'label': r['title'],
+                        'file_path': fp,
+                    }
                     st.rerun()
                 if st.button("Edit", key=f"edit_media_{r['id']}", type='primary'):
                     st.session_state['editing_media_id'] = r['id']
                     st.rerun()
 
-# --- Upload section (admin / editor) ---
-if user_role in ('admin', 'editor'):
-    st.divider()
-    st.subheader("Upload Media")
-    media_type = st.selectbox(
-        "Type",
-        ["photo", "video"],
-        key="upload_media_type",
-    )
-    with st.form("upload_media"):
-
-        title = st.text_input("Title*")
-
-        # Source options depend on media type
-        if media_type == "photo":
-            source_options = ["Upload File", "Photo Link"]
-        else:
-            source_options = ["Upload File", "YouTube Video", "Video Link"]
-        source_type = st.radio(
-            "Source",
-            source_options,
-            horizontal=True,
-            label_visibility="collapsed",
-        )
-
-        caption = st.text_area("Caption")
-        tags = st.text_input("Tags (comma separated)")
-        related_type = st.selectbox("Related to", ["general", "project", "member"])
-        related_id = st.number_input("Related ID (optional)", min_value=0, value=0)
-
-        file_path = None
-        if source_type == "Upload File":
-            file = st.file_uploader(
-                "Upload File",
-                type=["jpg", "jpeg", "png", "gif", "mp4", "mov"],
-            )
-            if file:
-                file_path = save_upload(file, subfolder='media')
-        elif source_type == "YouTube Video":
-            file_path = st.text_input(
-                "YouTube URL",
-                placeholder="https://www.youtube.com/watch?v=...",
-            )
-        elif source_type == "Photo Link":
-            file_path = st.text_input(
-                "Photo URL",
-                placeholder="https://example.com/photo.jpg",
-            )
-        elif source_type == "Video Link":
-            file_path = st.text_input(
-                "Video URL",
-                placeholder="https://example.com/video.mp4",
-            )
-
-        submitted = st.form_submit_button("Upload")
-        if submitted and title and file_path:
-            execute_write(
-                "INSERT INTO media (title, media_type, file_path, caption, tags, related_type, related_id, uploaded_by) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (title, media_type, file_path, caption or None, tags or None,
-                 related_type if related_type != 'general' else 'general',
-                 related_id if related_id else None,
-                 _get_current_user()['id']),
-            )
-            log_activity(_get_current_user()['id'], 'create', 'media', details=title)
-            st.success("Media uploaded.")
+# --- Delete confirmation popover ---
+pending = st.session_state.get('pending_delete')
+if pending and pending.get('type') == 'media':
+    with st.popover("Confirm Delete", icon="⚠️"):
+        st.warning(f"Are you sure you want to delete **{pending['label']}**? This cannot be undone.")
+        c1, c2 = st.columns(2)
+        if c1.button("Yes, delete", type="primary", key=f"confirm_del_media_{pending['id']}", use_container_width=True):
+            fp = pending.get('file_path')
+            if fp and not is_url(fp):
+                delete_file(fp)
+            execute_write("DELETE FROM media WHERE id = %s", (pending['id'],))
+            log_activity(_get_current_user()['id'], 'delete', 'media', pending['id'])
+            st.session_state['pending_delete'] = None
+            st.success("Deleted.")
+            st.rerun()
+        if c2.button("Cancel", key=f"cancel_del_media_{pending['id']}", use_container_width=True):
+            st.session_state['pending_delete'] = None
             st.rerun()
 
 # --- Edit Media form (admin / editor) ---
@@ -235,6 +187,78 @@ if user_role in ('admin', 'editor') and st.session_state.get('editing_media_id')
             st.success(f"Updated: {edit_title}")
             st.session_state['editing_media_id'] = None
             st.rerun()
+    if st.button("Back to Videos", key="media_back_to_list"):
+        st.session_state['editing_media_id'] = None
+        st.rerun()
+    st.stop()
+
+# --- Upload section (admin / editor) ---
+if user_role in ('admin', 'editor'):
+    st.divider()
+    st.subheader("Upload Media")
+    media_type = st.selectbox(
+        "Type",
+        ["photo", "video"],
+        key="upload_media_type",
+    )
+    with st.form("upload_media"):
+
+        title = st.text_input("Title*")
+
+        # Source options depend on media type
+        if media_type == "photo":
+            source_options = ["Upload File", "Photo Link"]
+        else:
+            source_options = ["Upload File", "YouTube Video", "Video Link"]
+        source_type = st.radio(
+            "Source",
+            source_options,
+            horizontal=True,
+            label_visibility="collapsed",
+        )
+
+        caption = st.text_area("Caption")
+        tags = st.text_input("Tags (comma separated)")
+        related_type = st.selectbox("Related to", ["general", "project", "member"])
+        related_id = st.number_input("Related ID (optional)", min_value=0, value=0)
+
+        file_path = None
+        if source_type == "Upload File":
+            file = st.file_uploader(
+                "Upload File",
+                type=["jpg", "jpeg", "png", "gif", "mp4", "mov"],
+            )
+            if file:
+                file_path = save_upload(file, subfolder='media')
+        elif source_type == "YouTube Video":
+            file_path = st.text_input(
+                "YouTube URL",
+                placeholder="https://www.youtube.com/watch?v=...",
+            )
+        elif source_type == "Photo Link":
+            file_path = st.text_input(
+                "Photo URL",
+                placeholder="https://example.com/photo.jpg",
+            )
+        elif source_type == "Video Link":
+            file_path = st.text_input(
+                "Video URL",
+                placeholder="https://example.com/video.mp4",
+            )
+
+        submitted = st.form_submit_button("Upload")
+        if submitted and title and file_path:
+            execute_write(
+                "INSERT INTO media (title, media_type, file_path, caption, tags, related_type, related_id, uploaded_by) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (title, media_type, file_path, caption or None, tags or None,
+                 related_type if related_type != 'general' else 'general',
+                 related_id if related_id else None,
+                 _get_current_user()['id']),
+            )
+            log_activity(_get_current_user()['id'], 'create', 'media', details=title)
+            st.success("Media uploaded.")
+            st.rerun()
 
 # --- Existing photos ---
 if photos:
@@ -254,11 +278,12 @@ if photos:
             st.write(f"**Source:** {'Link' if is_url(fp) else 'Uploaded File'}")
             if user_role in ('admin', 'editor'):
                 if st.button("Delete", key=f"del_media_{r['id']}", type='secondary'):
-                    if not is_url(fp):
-                        delete_file(fp)
-                    execute_write("DELETE FROM media WHERE id = %s", (r['id'],))
-                    log_activity(_get_current_user()['id'], 'delete', 'media', r['id'])
-                    st.success("Deleted.")
+                    st.session_state['pending_delete'] = {
+                        'type': 'media',
+                        'id': r['id'],
+                        'label': r['title'],
+                        'file_path': fp,
+                    }
                     st.rerun()
                 if st.button("Edit", key=f"edit_media_{r['id']}", type='primary'):
                     st.session_state['editing_media_id'] = r['id']
