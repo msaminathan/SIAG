@@ -7,6 +7,16 @@ require_role(('admin', 'editor', 'viewer'))
 
 st.title("Activity Log")
 
+# Flash message (persists across reruns)
+if st.session_state.get('flash_msg'):
+    fmsg = st.session_state['flash_msg']
+    if st.session_state.get('flash_type') == 'error':
+        st.error(fmsg)
+    else:
+        st.success(fmsg)
+    del st.session_state['flash_msg']
+    del st.session_state['flash_type']
+
 render_current_user_badge()
 render_current_member_badge()
 
@@ -45,7 +55,8 @@ if pending and pending.get('type') == 'purge':
             execute_write("DELETE FROM activity_log")
             log_activity(user['id'], 'purge', 'activity_log', None, "Purged all activity log entries")
             st.session_state['pending_delete'] = None
-            st.success("Purged all activity log entries.")
+            st.session_state['flash_msg'] = "Purged all activity log entries."
+            st.session_state['flash_type'] = 'success'
             st.rerun()
         if c2.button("Cancel", key="cancel_purge", use_container_width=True):
             st.session_state['pending_delete'] = None

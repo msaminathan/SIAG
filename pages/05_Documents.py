@@ -8,6 +8,16 @@ require_role(('admin', 'editor', 'viewer'))
 
 st.title("Documents")
 
+# Flash message (persists across reruns)
+if st.session_state.get('flash_msg'):
+    fmsg = st.session_state['flash_msg']
+    if st.session_state.get('flash_type') == 'error':
+        st.error(fmsg)
+    else:
+        st.success(fmsg)
+    del st.session_state['flash_msg']
+    del st.session_state['flash_type']
+
 render_current_user_badge()
 render_current_member_badge()
 
@@ -88,7 +98,8 @@ if pending and pending.get('type') == 'document':
             execute_write("DELETE FROM documents WHERE id = %s", (pending['id'],))
             log_activity(_get_current_user()['id'], 'delete', 'documents', pending['id'])
             st.session_state['pending_delete'] = None
-            st.success("Deleted.")
+            st.session_state['flash_msg'] = "Deleted."
+            st.session_state['flash_type'] = 'success'
             st.rerun()
         if c2.button("Cancel", key=f"cancel_del_doc_{pending['id']}", use_container_width=True):
             st.session_state['pending_delete'] = None
@@ -118,7 +129,8 @@ if user_role in ('admin', 'editor') and not st.session_state.get('editing_doc_id
                  _get_current_user()['id']),
             )
             log_activity(_get_current_user()['id'], 'create', 'documents', details=title)
-            st.success("Document uploaded.")
+            st.session_state['flash_msg'] = "Document uploaded."
+            st.session_state['flash_type'] = 'success'
             st.rerun()
 
 # --- Edit Document form (admin / editor) ---
@@ -158,7 +170,8 @@ if user_role in ('admin', 'editor') and st.session_state.get('editing_doc_id') i
             log_activity(_get_current_user()['id'], 'update', 'documents', details=edit_title)
             st.session_state['_clear_edit'] = True
             st.session_state['editing_doc_id'] = None
-            st.success(f"Updated: {edit_title}")
+            st.session_state['flash_msg'] = f"Updated: {edit_title}"
+            st.session_state['flash_type'] = 'success'
             st.rerun()
     if st.button("Back to Documents", key="doc_back_to_list"):
         st.session_state['editing_doc_id'] = None
