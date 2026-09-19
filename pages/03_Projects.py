@@ -134,22 +134,21 @@ for r in rows:
             st.session_state['editing_project_id'] = r['id']
             st.rerun()
 
-# --- Delete confirmation popover ---
+# --- Delete confirmation ---
 pending = st.session_state.get('pending_delete')
 if pending and pending.get('type') == 'project':
-    with st.popover("Confirm Delete", icon="⚠️"):
-        st.warning(f"Are you sure you want to delete **{pending['label']}**? This cannot be undone.")
-        c1, c2 = st.columns(2)
-        if c1.button("Yes, delete", type="primary", key=f"confirm_del_proj_{pending['id']}", use_container_width=True):
-            execute_write("DELETE FROM projects WHERE id = %s", (pending['id'],))
-            log_activity(_get_current_user()['id'], 'delete', 'projects', pending['id'])
-            st.session_state['pending_delete'] = None
-            st.query_params["flash"] = "Project deleted."
-            st.query_params["flash_type"] = "success"
-            st.rerun()
-        if c2.button("Cancel", key=f"cancel_del_proj_{pending['id']}", use_container_width=True):
-            st.session_state['pending_delete'] = None
-            st.rerun()
+    st.warning(f"⚠️ Are you sure you want to delete **{pending['label']}**? This cannot be undone.")
+    c1, c2 = st.columns(2)
+    if c1.button("Yes, delete", type="primary", key=f"confirm_del_proj_{pending['id']}", use_container_width=True):
+        execute_write("DELETE FROM projects WHERE id = %s", (pending['id'],))
+        log_activity(_get_current_user()['id'], 'delete', 'projects', pending['id'])
+        st.session_state['pending_delete'] = None
+        st.query_params["flash"] = "Project deleted."
+        st.query_params["flash_type"] = "success"
+        st.rerun()
+    if c2.button("Cancel", key=f"cancel_del_proj_{pending['id']}", use_container_width=True):
+        st.session_state['pending_delete'] = None
+        st.rerun()
 
 # --- Add / Edit Project (admin / editor) ---
 user_role = _get_current_user().get('role') if _get_current_user() else None

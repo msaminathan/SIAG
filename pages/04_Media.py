@@ -71,25 +71,24 @@ if videos:
                     st.session_state['editing_media_id'] = r['id']
                     st.rerun()
 
-# --- Delete confirmation popover ---
+# --- Delete confirmation ---
 pending = st.session_state.get('pending_delete')
 if pending and pending.get('type') == 'media':
-    with st.popover("Confirm Delete", icon="⚠️"):
-        st.warning(f"Are you sure you want to delete **{pending['label']}**? This cannot be undone.")
-        c1, c2 = st.columns(2)
-        if c1.button("Yes, delete", type="primary", key=f"confirm_del_media_{pending['id']}", use_container_width=True):
-            fp = pending.get('file_path')
-            if fp and not is_url(fp):
-                delete_file(fp)
-            execute_write("DELETE FROM media WHERE id = %s", (pending['id'],))
-            log_activity(_get_current_user()['id'], 'delete', 'media', pending['id'])
-            st.session_state['pending_delete'] = None
-            st.query_params["flash"] = "Deleted."
-            st.query_params["flash_type"] = "success"
-            st.rerun()
-        if c2.button("Cancel", key=f"cancel_del_media_{pending['id']}", use_container_width=True):
-            st.session_state['pending_delete'] = None
-            st.rerun()
+    st.warning(f"⚠️ Are you sure you want to delete **{pending['label']}**? This cannot be undone.")
+    c1, c2 = st.columns(2)
+    if c1.button("Yes, delete", type="primary", key=f"confirm_del_media_{pending['id']}", use_container_width=True):
+        fp = pending.get('file_path')
+        if fp and not is_url(fp):
+            delete_file(fp)
+        execute_write("DELETE FROM media WHERE id = %s", (pending['id'],))
+        log_activity(_get_current_user()['id'], 'delete', 'media', pending['id'])
+        st.session_state['pending_delete'] = None
+        st.query_params["flash"] = "Deleted."
+        st.query_params["flash_type"] = "success"
+        st.rerun()
+    if c2.button("Cancel", key=f"cancel_del_media_{pending['id']}", use_container_width=True):
+        st.session_state['pending_delete'] = None
+        st.rerun()
 
 # --- Edit Media form (admin / editor) ---
 if user_role in ('admin', 'editor') and st.session_state.get('editing_media_id'):

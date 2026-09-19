@@ -63,22 +63,21 @@ if rows:
 else:
     st.info("No members found.")
 
-# --- Delete confirmation popover ---
+# --- Delete confirmation ---
 pending = st.session_state.get('pending_delete')
 if pending and pending.get('type') == 'member':
-    with st.popover("Confirm Delete", icon="⚠️"):
-        st.warning(f"Are you sure you want to delete **{pending['label']}**? This cannot be undone.")
-        c1, c2 = st.columns(2)
-        if c1.button("Yes, delete", type="primary", key=f"confirm_del_{pending['id']}", use_container_width=True):
-            execute_write("DELETE FROM members WHERE id = %s", (pending['id'],))
-            log_activity(_get_current_user()['id'], 'delete', 'members', pending['id'])
-            st.session_state['pending_delete'] = None
-            st.query_params["flash"] = "Deleted."
-            st.query_params["flash_type"] = "success"
-            st.rerun()
-        if c2.button("Cancel", key=f"cancel_del_{pending['id']}", use_container_width=True):
-            st.session_state['pending_delete'] = None
-            st.rerun()
+    st.warning(f"⚠️ Are you sure you want to delete **{pending['label']}**? This cannot be undone.")
+    c1, c2 = st.columns(2)
+    if c1.button("Yes, delete", type="primary", key=f"confirm_del_{pending['id']}", use_container_width=True):
+        execute_write("DELETE FROM members WHERE id = %s", (pending['id'],))
+        log_activity(_get_current_user()['id'], 'delete', 'members', pending['id'])
+        st.session_state['pending_delete'] = None
+        st.query_params["flash"] = "Deleted."
+        st.query_params["flash_type"] = "success"
+        st.rerun()
+    if c2.button("Cancel", key=f"cancel_del_{pending['id']}", use_container_width=True):
+        st.session_state['pending_delete'] = None
+        st.rerun()
 
 user_role = _get_current_user().get('role') if _get_current_user() else None
 if user_role in ('admin','editor'):
