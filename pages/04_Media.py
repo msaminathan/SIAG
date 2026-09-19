@@ -74,7 +74,7 @@ if pending and pending.get('type') == 'media':
             execute_write("DELETE FROM media WHERE id = %s", (pending['id'],))
             log_activity(_get_current_user()['id'], 'delete', 'media', pending['id'])
             st.session_state['pending_delete'] = None
-            st.toast("Deleted.", duration="long")
+            st.success("Deleted.")
             st.rerun()
         if c2.button("Cancel", key=f"cancel_del_media_{pending['id']}", use_container_width=True):
             st.session_state['pending_delete'] = None
@@ -184,7 +184,7 @@ if user_role in ('admin', 'editor') and st.session_state.get('editing_media_id')
                  edit_id),
             )
             log_activity(_get_current_user()['id'], 'update', 'media', edit_id, details=edit_title)
-            st.toast(f"Updated: {edit_title}")
+            st.success(f"Updated: {edit_title}")
             st.session_state['editing_media_id'] = None
             st.rerun()
     if st.button("Back to Videos", key="media_back_to_list"):
@@ -257,7 +257,7 @@ if user_role in ('admin', 'editor'):
                  _get_current_user()['id']),
             )
             log_activity(_get_current_user()['id'], 'create', 'media', details=title)
-            st.toast("Media uploaded.")
+            st.success("Media uploaded.")
             st.rerun()
 
 # --- Existing photos ---

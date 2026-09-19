@@ -45,7 +45,7 @@ if pending and pending.get('type') == 'purge':
             execute_write("DELETE FROM activity_log")
             log_activity(user['id'], 'purge', 'activity_log', None, "Purged all activity log entries")
             st.session_state['pending_delete'] = None
-            st.toast("Purged all activity log entries.", duration="long")
+            st.success("Purged all activity log entries.")
             st.rerun()
         if c2.button("Cancel", key="cancel_purge", use_container_width=True):
             st.session_state['pending_delete'] = None

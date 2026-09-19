@@ -61,7 +61,7 @@ if editing_id and user_role in ('admin', 'editor'):
                  _get_current_user()['id'], editing_id),
             )
             log_activity(_get_current_user()['id'], 'update', 'projects', editing_id, details=f"Updated {name}")
-            st.toast(f"Project updated: {name}")
+            st.success(f"Project updated: {name}")
             st.session_state['editing_project_id'] = None
             st.rerun()
 
@@ -132,7 +132,7 @@ if pending and pending.get('type') == 'project':
             execute_write("DELETE FROM projects WHERE id = %s", (pending['id'],))
             log_activity(_get_current_user()['id'], 'delete', 'projects', pending['id'])
             st.session_state['pending_delete'] = None
-            st.toast(f"Project deleted.", duration="long")
+            st.success("Project deleted.")
             st.rerun()
         if c2.button("Cancel", key=f"cancel_del_proj_{pending['id']}", use_container_width=True):
             st.session_state['pending_delete'] = None
@@ -196,7 +196,7 @@ if user_role in ('admin', 'editor'):
                      status,start,end,lead or None,budget,outcome or None,
                      _get_current_user()['id'],editing_id))
                 log_activity(_get_current_user()['id'],'update','projects',editing_id,details=f"Updated {name}")
-                st.toast(f"Project updated: {name}")
+                st.success(f"Project updated: {name}")
                 st.session_state['editing_project_id'] = None
                 st.rerun()
             else:
@@ -209,5 +209,5 @@ if user_role in ('admin', 'editor'):
                  _get_current_user()['id']),
             )
             log_activity(_get_current_user()['id'], 'create', 'projects', details=name)
-            st.toast("Project added.")
+            st.success("Project added.")
             st.rerun()

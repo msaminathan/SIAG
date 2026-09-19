@@ -11,7 +11,7 @@ st.title("Members")
 
 if st.query_params.get("status") == "password_updated":
     mn = st.query_params.get("member","Member")
-    st.toast(f"Password updated for **{mn}**")
+    st.success(f"Password updated for **{mn}**")
     st.query_params.clear()
 
 render_current_user_badge()
@@ -62,7 +62,7 @@ if pending and pending.get('type') == 'member':
             execute_write("DELETE FROM members WHERE id = %s", (pending['id'],))
             log_activity(_get_current_user()['id'], 'delete', 'members', pending['id'])
             st.session_state['pending_delete'] = None
-            st.toast("Deleted.", duration="long")
+            st.success("Deleted.")
             st.rerun()
         if c2.button("Cancel", key=f"cancel_del_{pending['id']}", use_container_width=True):
             st.session_state['pending_delete'] = None
@@ -128,7 +128,7 @@ if user_role in ('admin','editor'):
                         (fn,ln,email or None,phone or None,grad or None,dept or None,
                          role_in or None,notes or None,_get_current_user()['id'],eid))
                 log_activity(_get_current_user()['id'],'update','members',eid,details=f"Updated {fn} {ln}")
-                st.toast(f"Member updated: {fn} {ln}")
+                st.success(f"Member updated: {fn} {ln}")
                 st.session_state['editing_member_id'] = None
                 st.rerun()
             else:
@@ -138,7 +138,7 @@ if user_role in ('admin','editor'):
                     (fn,ln,email or None,phone or None,grad or None,dept or None,
                      role_in or None,pw,notes or None,_get_current_user()['id'],_get_current_user()['id']))
                 log_activity(_get_current_user()['id'],'create','members',details=f"{fn} {ln}")
-                st.toast("Member added.")
+                st.success("Member added.")
                 st.rerun()
 
     if st.button("Back to Members", key="member_back_to_list"):
